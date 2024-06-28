@@ -2,17 +2,6 @@ import mfrc522
 from os import uname
 
 
-def convert_to_byte(q: str):
-    str = []
-    for i in q:
-        hex_val = hex(ord(i))
-        if i == q[0]:
-            str.append(f"\\x{hex_val[2:]}")
-        else:
-            str.append(f"\\x{hex_val[2:]}")
-    return bytes("".join(str), "utf-8")
-
-
 def do_write():
     if uname()[0] == "WiPy":
         rdr = mfrc522.MFRC522("GP14", "GP16", "GP15", "GP22", "GP17")
