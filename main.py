@@ -1,52 +1,47 @@
-from hcsr04 import HCSR04
 from machine import Pin
-from mfrc522 import MFRC522
 from read import do_read
+from hcsr04 import HCSR04
+from mfrc522 import MFRC522
+from network import WLAN, STA_IF
 
-import umqtt.robust as mqtt
-import network
-import time
 import dht
+import umqtt.robust as mqtt
+import time
 import json
 
-echo = 15
-trig = 16
-servo = 12
-dht_pin = 13
-led = 2
-sda = 14
-sck = 0
-mosi = 2
-miso = 4
-rst = 5
+from _global import (
+    TRIG,
+    ECHO,
+    DHTPIN,
+    LED,
+    SCK,
+    MOSI,
+    MISO,
+    RST,
+    SDA,
+    SSID,
+    PASS,
+    MQTTBROKER,
+    MQTTPORT,
+    MQTTUSER,
+    MQTTPASS,
+    TEMP_PUBTOPIC,
+    HUMI_PUBTOPIC,
+    SERVO_PUBTOPIC,
+)
 
-temp = 0
-humi = 0
-
-ssid = "Airtel_Aditya"
-password = "kk9310028206"
-
-mqtt_broker = "io.adafruit.com"
-mqtt_port = 1883
-mqtt_user = "axitya"
-mqtt_password = "b01317a9cbfa49f097c1e750a9de43bd"
-publish_door_topic = b"axitya/feeds/door-feed"
-publish_temp_topic = b"axitya/feeds/temp-feed"
-publish_humi_topic = b"axitya/feeds/humi-feed"
-publish_servo_topic = b"axitya/feeds/servo-feed"
-
-radar_sensor = HCSR04(trigger_pin=trig, echo_pin=echo, echo_timeout_us=10000)
-dht_sensor = dht.DHT11(Pin(dht_pin))
-led_pin = Pin(led, Pin.OUT)
-rfid = MFRC522(sck, mosi, miso, rst, sda)
+radar_sensor = HCSR04(trigger_pin=TRIG, echo_pin=ECHO, echo_timeout_us=10000)
+dht_sensor = dht.DHT11(Pin(DHTPIN))
+led_pin = Pin(LED, Pin.OUT)
+rfid = MFRC522(SCK, MOSI, MISO, RST, SDA)
 
 
 def connect_to_wifi():
-    wlan = network.WLAN(network.STA_IF)
+    wlan = WLAN(STA_IF)
     wlan.active(True)
     if not wlan.isconnected():
         print("Connecting to network...")
-        wlan.connect(ssid, password)
+        wlan.connect(SSID, PASS)
         while not wlan.isconnected():
             pass
     print("Network connected!")
@@ -58,7 +53,11 @@ def message_callback(topic, msg):
 
 def setup_mqtt():
     client = mqtt.MQTTClient(
-        "ESP8266", mqtt_broker, port=mqtt_port, user=mqtt_user, password=mqtt_password
+        "ESP8266",
+        MQTTBROKER,
+        port=MQTTPORT,
+        user=MQTTUSER,
+        password=MQTTPASS,
     )
     client.set_callback(message_callback)
     client.connect()
@@ -83,27 +82,27 @@ def handle_mqtt(client):
                 print("READ_MSG:", read_msg)
                 led_pin.on()
 
-                door_json = None
+                servo_json = None
 
                 if read_msg is None or read_msg == "":
-                    door_json = json.dumps({"value": 0})
+                    servo_json = json.dumps({"value": 0})
                 else:
                     if read_msg == "Authorized":
                         print("Publishing authorized access")
-                        door_json = json.dumps({"value": 1})
+                        servo_json = json.dumps({"value": 1})
                     elif read_msg == "Unauthorized":
                         print("Publishing authorized access")
-                        door_json = json.dumps({"value": 0})
+                        servo_json = json.dumps({"value": 0})
 
                 temp_json = json.dumps({"value": temp})
                 humi_json = json.dumps({"value": humi})
                 servo_json = json.dumps({"value": radar_sensor.distance_cm()})
 
                 print("Publishing temperature, humidity, and servo data")
-                client.publish(publish_temp_topic, temp_json)
-                client.publish(publish_humi_topic, humi_json)
-                client.publish(publish_servo_topic, servo_json)
-                client.publish(publish_door_topic, door_json)
+                client.publish(TEMP_PUBTOPIC, temp_json)
+                client.publish(HUMI_PUBTOPIC, humi_json)
+                client.publish(SERVO_PUBTOPIC, servo_json)
+                client.publish(SERVO_PUBTOPIC, servo_json)
 
                 last_publish_time = current_time
             time.sleep(1)
@@ -117,5 +116,4 @@ def main():
     handle_mqtt(client)
 
 
-if __name__ == "__main__":
-    main()
+main()
