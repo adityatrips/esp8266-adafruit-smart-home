@@ -2,12 +2,20 @@
 
 ## Requirements
 
+### Hardware
+
 - ESP8266 (NodeMCU)
 - NodeMCU pin extension board
 - DHT11 (Temperature and humidity sensor)
 - HCSR04 (Ultrasonic sensor)
 - MFRC522 (RFID sensor)
 - SG90 (Servo motor)
+
+### Software
+
+- EasyEDA (for schematic diagram)
+- AdafruitIO (for MQTT server)
+- Thonny/uPyCraft (for editing code on the micro-controller)
 
 ## Globals
 
