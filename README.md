@@ -22,3 +22,21 @@
   - If the card has the message `UNAUTHORIZED`, it will publish `0` to `SERVO_PUBTOPIC`.
   - This will cause an indicator on the dashboard to turn `red` for `UNAUTHORIZED` and will turn `green` for `AUTHORIZED`.
 - When the on-board LED on the boards switches off, it will publish the temperature, humidity, and the ultrasonic sensor data on the AdafruitIO dashboard.
+
+## Connections
+
+![Image](/Schematics.png)
+
+| ESP8266 | DHT11 | HCSR04 | MFRC522 | SG90 |
+| ------- | ----- | ------ | ------- | ---- |
+| IO16    | -     | TRIG   | -       | -    |
+| IO05    | -     | -      | RST     | -    |
+| IO04    | -     | -      | MISO    | -    |
+| IO00    | -     | -      | SCK     | -    |
+| IO02    | -     | -      | MOSI    | -    |
+| IO14    | -     | -      | SDA     | -    |
+| IO12    | -     | -      | -       | DATA |
+| IO13    | DATA  | -      | -       | -    |
+| IO15    | -     | ECHO   | -       | -    |
+| GND     | GND   | GND    | GND     | VCC  |
+| 3V3     | VCC   | VCC    | VCC     | VCC  |
