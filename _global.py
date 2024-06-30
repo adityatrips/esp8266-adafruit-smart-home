@@ -12,8 +12,8 @@ RST = 5
 TEMP = 0
 HUMI = 0
 
-SSID = "Airtel_Aditya"
-PASS = "kk9310028206"
+SSID = "AnjaliYashNTCC"
+PASS = "AnjaliYashNTCC"
 
 MQTTBROKER = "io.adafruit.com"
 MQTTPORT = 1883
