@@ -2,30 +2,30 @@ ECHO = 15
 TRIG = 16
 SERVO = 12
 DHTPIN = 13
-LED = 3
+LED = 1
 SDA = 14
 SCK = 0
 MOSI = 2
 MISO = 4
 RST = 5
-BUTTON = 1
+BUTTON = 3
 
 TEMP = 0
 HUMI = 0
 
-SSID = "AnjaliYashNTCC"
-PASS = "AnjaliYashNTCC"
+SSID = "Airtel_Aditya"
+PASS = "kk9310028206"
 
 MQTTBROKER = "io.adafruit.com"
 MQTTPORT = 1883
-MQTTUSER = "Anjali_Chauhan"
-MQTTPASS = "aio_okns43x9FNRmyBsw9di5c3NeyXcv"
+MQTTUSER = "axitya"
+MQTTPASS = "b01317a9cbfa49f097c1e750a9de43bd"
 
-DOOR_PUBSUBTOPIC = b"Anjali_Chauhan/feeds/door-feed"
-TEMP_PUBTOPIC = b"Anjali_Chauhan/feeds/temp-feed"
-HUMI_PUBTOPIC = b"Anjali_Chauhan/feeds/humi-feed"
-SERVO_PUBTOPIC = b"Anjali_Chauhan/feeds/servo-feed"
-LED_SUBTOPIC = b"Anjali_Chauhan/feeds/led-feed"
+DOOR_PUBSUBTOPIC = b"axitya/feeds/door-feed"
+TEMP_PUBTOPIC = b"axitya/feeds/temp-feed"
+HUMI_PUBTOPIC = b"axitya/feeds/humi-feed"
+SERVO_PUBTOPIC = b"axitya/feeds/servo-feed"
+LED_SUBTOPIC = b"axitya/feeds/led-feed"
 
 DOOR_CLOSED_POS = 130
 DOOR_OPENED_POS = 77
