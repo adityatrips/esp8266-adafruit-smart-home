@@ -4,4 +4,4 @@ ampy put _global.py
 ampy put hcsr04.py
 ampy put mfrc522.py
 ampy put read.py
-ampy put main.py
+@REM ampy put main.py

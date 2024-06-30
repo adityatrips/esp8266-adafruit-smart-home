@@ -8,6 +8,7 @@ SCK = 0
 MOSI = 2
 MISO = 4
 RST = 5
+BUTTON = 1
 
 TEMP = 0
 HUMI = 0

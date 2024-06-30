@@ -31,8 +31,13 @@ from _global import (
     DOOR_PUBSUBTOPIC,
     SERVO_PUBTOPIC,
     LED_SUBTOPIC,
-    LED,
+    BUTTON,
 )
+
+# Initialize the button pin
+button_pin = Pin(
+    BUTTON, Pin.IN, Pin.PULL_UP
+)  # Adjust pull depending on your circuit (PULL_UP if button connects to ground when pressed)
 
 radar_sensor = HCSR04(trigger_pin=TRIG, echo_pin=ECHO, echo_timeout_us=10000)
 dht_sensor = dht.DHT11(Pin(DHTPIN))
@@ -40,7 +45,6 @@ led_pin = Pin(LED, Pin.OUT)
 rfid = MFRC522(SCK, MOSI, MISO, RST, SDA)
 servo = PWM(Pin(SERVO, Pin.OUT), freq=50)
 led = Pin(LED, Pin.OUT)
-
 
 client = None
 
@@ -64,7 +68,7 @@ def message_callback(topic, msg):
             led.on()
         else:
             led.off()
-    elif topic == b"axitya/feeds/door-feed":
+    elif topic == DOOR_PUBSUBTOPIC:
         if msg == b"0":
             servo.duty(77)
         elif msg == b"1":
@@ -93,58 +97,58 @@ async def sub_task():
 
 
 async def pub_task():
+    dht_sensor.measure()
+    temp = dht_sensor.temperature()
+    humi = dht_sensor.humidity()
+
+    temp_json = json.dumps({"value": temp})
+    humi_json = json.dumps({"value": humi})
+    us_json = json.dumps({"value": radar_sensor.distance_cm()})
+
+    print("Publishing temperature, humidity, and servo data")
+    client.publish(TEMP_PUBTOPIC, temp_json)
+    client.publish(HUMI_PUBTOPIC, humi_json)
+    client.publish(SERVO_PUBTOPIC, us_json)
+
+
+# Add an asynchronous function to monitor the button
+async def button_monitor():
+    global client
     while True:
-        dht_sensor.measure()
-        temp = dht_sensor.temperature()
-        humi = dht_sensor.humidity()
+        if not button_pin.value():  # Check if the button is pressed
+            print("Button pressed, hold the card close...")
+            led_pin.off()
+            try:
+                read_msg = do_read()
+            except Exception as e:
+                read_msg = None
+            finally:
+                led_pin.on()
 
-        led_pin.off()
-        try:
-            read_msg = do_read()
-        except Exception as e:
-            return None
-        print("READ_MSG:", read_msg)
-        led_pin.on()
+            door_json = None
 
-        door_json = None
-
-        if isinstance(read_msg, type(None)):
-            door_json = json.dumps({"value": 0})
-        else:
-            if read_msg == "Authorized":
-                print("Publishing authorized access")
-                door_json = json.dumps({"value": 1})
-            elif read_msg == "Unauthorized":
-                print("Publishing unauthorized access")
+            if isinstance(read_msg, type(None)):
                 door_json = json.dumps({"value": 0})
+            else:
+                if read_msg == "Authorized":
+                    print("Publishing authorized access")
+                    door_json = json.dumps({"value": 1})
+                elif read_msg == "Unauthorized":
+                    print("Publishing unauthorized access")
+                    door_json = json.dumps({"value": 0})
+            client.publish(DOOR_PUBSUBTOPIC, door_json)
 
-        temp_json = json.dumps({"value": temp})
-        humi_json = json.dumps({"value": humi})
-        us_json = json.dumps({"value": radar_sensor.distance_cm()})
+            # Halt other tasks until the button is released
+            while not button_pin.value():
+                await asyncio.sleep(0.1)  # Check every 100 ms
 
-        print("Publishing temperature, humidity, and servo data")
-        client.publish(TEMP_PUBTOPIC, temp_json)
-        client.publish(HUMI_PUBTOPIC, humi_json)
-        client.publish(SERVO_PUBTOPIC, us_json)
-        client.publish(DOOR_PUBSUBTOPIC, door_json)
-
-
-async def handle_mqtt():
-    sub = asyncio.create_task(sub_task())
-    pub = asyncio.create_task(pub_task())
-
-    await sub
-    await pub
+        await asyncio.sleep(0.1)  # Check every 100 ms
 
 
 def main():
     connect_to_wifi()
     setup_mqtt()
-
-    try:
-        asyncio.run(handle_mqtt())
-    except Exception as e:
-        asyncio.run(handle_mqtt())
+    asyncio.run(asyncio.gather(button_monitor(), sub_task(), pub_task()))
 
 
 main()
