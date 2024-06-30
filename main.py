@@ -89,7 +89,7 @@ def setup_mqtt():
 async def sub_task():
     while True:
         client.check_msg()
-        awaitasyncio.sleep(1)
+        await asyncio.sleep(1)
 
 
 async def pub_task():
