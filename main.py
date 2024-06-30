@@ -41,6 +41,7 @@ rfid = MFRC522(SCK, MOSI, MISO, RST, SDA)
 servo = PWM(Pin(SERVO, Pin.OUT), freq=50)
 led = Pin(LED, Pin.OUT)
 
+
 client = None
 
 
@@ -88,7 +89,7 @@ def setup_mqtt():
 async def sub_task():
     while True:
         client.check_msg()
-        await asyncio.sleep(1)
+        awaitasyncio.sleep(1)
 
 
 async def pub_task():
@@ -107,7 +108,7 @@ async def pub_task():
 
         door_json = None
 
-        if read_msg == None or read_msg == None or read_msg == "":
+        if isinstance(read_msg, type(None)):
             door_json = json.dumps({"value": 0})
         else:
             if read_msg == "Authorized":

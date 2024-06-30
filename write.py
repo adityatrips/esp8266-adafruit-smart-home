@@ -99,7 +99,7 @@ async def pub_task():
 
         led_pin.off()
         try:
-            read_msg = do_read()
+            read_msg = await do_read()
         except Exception as e:
             return None
         print("READ_MSG:", read_msg)

@@ -17,13 +17,8 @@ def do_read():
 
     msg = None
 
-    curr_time = time.time()
-    while True:
-        if time.time() - curr_time >= 5:
-            break
-        else:
-            pass
-
+    start_time = time.time()
+    while time.time() - start_time < 5:
         (stat, tag_type) = rdr.request(rdr.REQIDL)
 
         if stat == rdr.OK:
@@ -44,13 +39,13 @@ def do_read():
                     if rdr.auth(rdr.AUTHENT1A, 8, key, raw_uid) == rdr.OK:
                         print("Address 8 data: %s" % rdr.read(8))
                         msg = "".join([chr(i) for i in rdr.read(8)])
-                        return msg.strip()
                         rdr.stop_crypto1()
+                        return msg.strip()
                     else:
                         print("Authentication error")
                 else:
                     print("Failed to select tag")
-    return msg.strip() if type(msg) == type("") else None
+        return None
 
 
 if __name__ == "__main__":
