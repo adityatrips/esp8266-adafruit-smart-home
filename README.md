@@ -16,6 +16,7 @@
 - EasyEDA (for schematic diagram)
 - AdafruitIO (for MQTT server)
 - Thonny/uPyCraft (for editing code on the micro-controller)
+- IFTTT (for interaction between the MQTT server and Google assistant)
 
 ## Globals
 
