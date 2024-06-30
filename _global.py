@@ -2,7 +2,7 @@ ECHO = 15
 TRIG = 16
 SERVO = 12
 DHTPIN = 13
-LED = 2
+LED = 3
 SDA = 14
 SCK = 0
 MOSI = 2
@@ -20,7 +20,11 @@ MQTTPORT = 1883
 MQTTUSER = "axitya"
 MQTTPASS = "b01317a9cbfa49f097c1e750a9de43bd"
 
-DOOR_PUBTOPIC = b"axitya/feeds/door-feed"
+DOOR_PUBSUBTOPIC = b"axitya/feeds/door-feed"
 TEMP_PUBTOPIC = b"axitya/feeds/temp-feed"
 HUMI_PUBTOPIC = b"axitya/feeds/humi-feed"
 SERVO_PUBTOPIC = b"axitya/feeds/servo-feed"
+LED_SUBTOPIC = b"axitya/feeds/led-feed"
+
+DOOR_CLOSED_POS = 130
+DOOR_OPENED_POS = 77

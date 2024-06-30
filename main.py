@@ -1,12 +1,12 @@
-from machine import Pin
+from machine import Pin, PWM
 from read import do_read
 from hcsr04 import HCSR04
 from mfrc522 import MFRC522
 from network import WLAN, STA_IF
+import uasyncio as asyncio
 
 import dht
 import umqtt.robust as mqtt
-import time
 import json
 
 from _global import (
@@ -21,19 +21,27 @@ from _global import (
     SDA,
     SSID,
     PASS,
+    SERVO,
     MQTTBROKER,
     MQTTPORT,
     MQTTUSER,
     MQTTPASS,
     TEMP_PUBTOPIC,
     HUMI_PUBTOPIC,
+    DOOR_PUBSUBTOPIC,
     SERVO_PUBTOPIC,
+    LED_SUBTOPIC,
+    LED,
 )
 
 radar_sensor = HCSR04(trigger_pin=TRIG, echo_pin=ECHO, echo_timeout_us=10000)
 dht_sensor = dht.DHT11(Pin(DHTPIN))
 led_pin = Pin(LED, Pin.OUT)
 rfid = MFRC522(SCK, MOSI, MISO, RST, SDA)
+servo = PWM(Pin(SERVO, Pin.OUT), freq=50)
+led = Pin(LED, Pin.OUT)
+
+client = None
 
 
 def connect_to_wifi():
@@ -48,10 +56,22 @@ def connect_to_wifi():
 
 
 def message_callback(topic, msg):
-    print("Received message on topic {}: {}".format(topic.decode(), msg.decode()))
+    print(topic)
+    print(msg)
+    if topic == LED_SUBTOPIC:
+        if msg == b"1":
+            led.on()
+        else:
+            led.off()
+    elif topic == b"axitya/feeds/door-feed":
+        if msg == b"0":
+            servo.duty(77)
+        elif msg == b"1":
+            servo.duty(130)
 
 
 def setup_mqtt():
+    global client
     client = mqtt.MQTTClient(
         "ESP8266",
         MQTTBROKER,
@@ -61,59 +81,69 @@ def setup_mqtt():
     )
     client.set_callback(message_callback)
     client.connect()
-    return client
+    client.subscribe(LED_SUBTOPIC)
+    client.subscribe(DOOR_PUBSUBTOPIC)
 
 
-def handle_mqtt(client):
-    last_publish_time = 0
-    publish_interval = 10
+async def sub_task():
+    while True:
+        client.check_msg()
+        await asyncio.sleep(1)
 
-    try:
-        while True:
-            client.check_msg()
-            current_time = time.time()
-            if current_time - last_publish_time > publish_interval:
-                dht_sensor.measure()
-                temp = dht_sensor.temperature()
-                humi = dht_sensor.humidity()
 
-                led_pin.off()
-                read_msg = do_read()
-                print("READ_MSG:", read_msg)
-                led_pin.on()
+async def pub_task():
+    while True:
+        dht_sensor.measure()
+        temp = dht_sensor.temperature()
+        humi = dht_sensor.humidity()
 
-                servo_json = None
+        led_pin.off()
+        try:
+            read_msg = do_read()
+        except Exception as e:
+            return None
+        print("READ_MSG:", read_msg)
+        led_pin.on()
 
-                if read_msg is None or read_msg == "":
-                    servo_json = json.dumps({"value": 0})
-                else:
-                    if read_msg == "Authorized":
-                        print("Publishing authorized access")
-                        servo_json = json.dumps({"value": 1})
-                    elif read_msg == "Unauthorized":
-                        print("Publishing authorized access")
-                        servo_json = json.dumps({"value": 0})
+        door_json = None
 
-                temp_json = json.dumps({"value": temp})
-                humi_json = json.dumps({"value": humi})
-                servo_json = json.dumps({"value": radar_sensor.distance_cm()})
+        if read_msg == None or read_msg == None or read_msg == "":
+            door_json = json.dumps({"value": 0})
+        else:
+            if read_msg == "Authorized":
+                print("Publishing authorized access")
+                door_json = json.dumps({"value": 1})
+            elif read_msg == "Unauthorized":
+                print("Publishing unauthorized access")
+                door_json = json.dumps({"value": 0})
 
-                print("Publishing temperature, humidity, and servo data")
-                client.publish(TEMP_PUBTOPIC, temp_json)
-                client.publish(HUMI_PUBTOPIC, humi_json)
-                client.publish(SERVO_PUBTOPIC, servo_json)
-                client.publish(SERVO_PUBTOPIC, servo_json)
+        temp_json = json.dumps({"value": temp})
+        humi_json = json.dumps({"value": humi})
+        us_json = json.dumps({"value": radar_sensor.distance_cm()})
 
-                last_publish_time = current_time
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Stopped by user")
+        print("Publishing temperature, humidity, and servo data")
+        client.publish(TEMP_PUBTOPIC, temp_json)
+        client.publish(HUMI_PUBTOPIC, humi_json)
+        client.publish(SERVO_PUBTOPIC, us_json)
+        client.publish(DOOR_PUBSUBTOPIC, door_json)
+
+
+async def handle_mqtt():
+    sub = asyncio.create_task(sub_task())
+    pub = asyncio.create_task(pub_task())
+
+    await sub
+    await pub
 
 
 def main():
     connect_to_wifi()
-    client = setup_mqtt()
-    handle_mqtt(client)
+    setup_mqtt()
+
+    try:
+        asyncio.run(handle_mqtt())
+    except Exception as e:
+        asyncio.run(handle_mqtt())
 
 
 main()
