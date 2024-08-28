@@ -4,6 +4,7 @@ from hcsr04 import HCSR04
 from mfrc522 import MFRC522
 import uasyncio as asyncio
 from network import WLAN, STA_IF
+import sys
 
 import dht
 import umqtt.robust as mqtt
@@ -46,30 +47,18 @@ led = Pin(LED, Pin.OUT)
 led.off()
 client = None
 
-
-def connect_to_wifi():
-    wlan = WLAN(STA_IF)
-    wlan.active(True)
-    if not wlan.isconnected():
-        print("Connecting to network...")
-        wlan.connect(SSID, PASS)
-        while not wlan.isconnected():
-            pass
-    print("Network connected!")
-
-
 def message_callback(topic, msg):
     print(topic)
     print(msg)
-    if topic == LED_SUBTOPIC:
+    if topic == b"Anjali_Chauhan/feeds/led-feed":
         if msg == b"1":
             led.on()
-        else:
+        elif msg == b"0":
             led.off()
     elif topic == DOOR_PUBSUBTOPIC:
         if msg == b"0":
             servo.duty(77)
-        elif msg == b"1":
+        elif msg == b"0":
             servo.duty(130)
 
 
@@ -158,11 +147,13 @@ async def handle_mqtt():
 
 
 def main():
-    connect_to_wifi()
-    print("SETUP MQTT")
-    setup_mqtt()
-    print("SETUP MQTT DONE")
-    asyncio.run(handle_mqtt())
-
+    try:
+        #connect_to_wifi()
+        print("SETUP MQTT")
+        setup_mqtt()
+        print("SETUP MQTT DONE")
+        asyncio.run(handle_mqtt())
+    except KeyboardInterrupt:
+        sys.exit(0)
 
 main()
