@@ -2,13 +2,12 @@ from machine import Pin, PWM
 from read import do_read
 from hcsr04 import HCSR04
 from mfrc522 import MFRC522
-import uasyncio as asyncio
 from network import WLAN, STA_IF
 import sys
-
 import dht
 import umqtt.robust as mqtt
 import json
+import time  # Import time for delays
 
 from _global import (
     TRIG,
@@ -47,10 +46,20 @@ led = Pin(LED, Pin.OUT)
 led.off()
 client = None
 
+def connect_to_wifi():
+    wlan = WLAN(STA_IF)
+    wlan.active(True)
+    wlan.connect(SSID, PASS)
+    print("Connecting to Wi-Fi...")
+
+    while not wlan.isconnected():
+        print("Waiting for Wi-Fi connection...")
+        time.sleep(1)  # Add delay to avoid busy loop
+    print("Connected to Wi-Fi:", wlan.ifconfig())
+
 def message_callback(topic, msg):
-    print(topic)
-    print(msg)
-    if topic == b"Anjali_Chauhan/feeds/led-feed":
+    print((topic, msg))
+    if topic == LED_SUBTOPIC:
         if msg == b"1":
             led.on()
         elif msg == b"0":
@@ -58,38 +67,38 @@ def message_callback(topic, msg):
     elif topic == DOOR_PUBSUBTOPIC:
         if msg == b"0":
             servo.duty(77)
-        elif msg == b"0":
+        elif msg == b"1":
             servo.duty(130)
 
-
 def setup_mqtt():
+    global client
+    client = mqtt.MQTTClient(
+        "ESP8266",
+        MQTTBROKER,
+        port=MQTTPORT,
+        user=MQTTUSER,
+        password=MQTTPASS,
+    )
+    client.set_callback(message_callback)
+    client.connect()
+    client.subscribe(LED_SUBTOPIC)
+    client.subscribe(DOOR_PUBSUBTOPIC)
+    print("MQTT setup done")
+
+def check_messages():
     try:
-        global client
-        client = mqtt.MQTTClient(
-            "ESP8266",
-            MQTTBROKER,
-            port=MQTTPORT,
-            user=MQTTUSER,
-            password=MQTTPASS,
-        )
-        client.set_callback(message_callback)
+        client.check_msg()
+    except Exception as e:
+        print("MQTT check message error:", e)
+        client.disconnect()
+        time.sleep(5)  # Retry delay
         client.connect()
         client.subscribe(LED_SUBTOPIC)
         client.subscribe(DOOR_PUBSUBTOPIC)
-    except OSError:
-        print("MQTT broker not found!")
-        setup_mqtt()
 
-
-async def sub_task():
-    while True:
-        client.check_msg()
-        await asyncio.sleep(1)
-
-
-async def pub_task():
-    while True:
-        if button_pin.value():  # Publish only if button is not pressed
+def publish_sensor_data():
+    try:
+        if button_pin.value():
             dht_sensor.measure()
             temp = dht_sensor.temperature()
             humi = dht_sensor.humidity()
@@ -102,58 +111,46 @@ async def pub_task():
             client.publish(TEMP_PUBTOPIC, temp_json)
             client.publish(HUMI_PUBTOPIC, humi_json)
             client.publish(SERVO_PUBTOPIC, us_json)
-        await asyncio.sleep(10)  # Publish sensor data every 10 seconds
+    except Exception as e:
+        print("MQTT publish error:", e)
 
-
-async def button_monitor():
-    global client
-    while True:
-        if not button_pin.value():  # Check if the button is pressed
+def monitor_button():
+    try:
+        if not button_pin.value():
             print("Button pressed, hold the card close...")
             led_pin.off()
-            try:
-                read_msg = do_read()
-            except Exception as e:
-                read_msg = None
-            finally:
-                led_pin.on()
+            read_msg = do_read()
+            led_pin.on()
 
-            door_json = None
-
-            if isinstance(read_msg, type(None)):
+            if read_msg is None:
                 door_json = json.dumps({"value": 0})
             else:
                 if read_msg == "Authorized":
                     print("Publishing authorized access")
                     door_json = json.dumps({"value": 1})
-                elif read_msg == "Unauthorized":
+                else:
                     print("Publishing unauthorized access")
                     door_json = json.dumps({"value": 0})
             client.publish(DOOR_PUBSUBTOPIC, door_json)
 
-            # Halt other tasks until the button is released
             while not button_pin.value():
-                await asyncio.sleep(0.1)  # Check every 100 ms
+                time.sleep(0.1)
+    except Exception as e:
+        print("Button monitor error:", e)
 
-        await asyncio.sleep(0.1)  # Check every 100 ms
+def main_loop():
+    connect_to_wifi()
+    setup_mqtt()
 
+    while True:
+        check_messages()       # Check for incoming MQTT messages
+        publish_sensor_data()  # Publish sensor data
+        monitor_button()       # Monitor the button for RFID reading
+        time.sleep(1)          # Loop delay to reduce CPU load
 
-async def handle_mqtt():
-    sub = asyncio.create_task(sub_task())
-    pub = asyncio.create_task(pub_task())
-    button = asyncio.create_task(button_monitor())
-
-    await asyncio.gather(sub, pub, button)
-
-
-def main():
-    try:
-        #connect_to_wifi()
-        print("SETUP MQTT")
-        setup_mqtt()
-        print("SETUP MQTT DONE")
-        asyncio.run(handle_mqtt())
-    except KeyboardInterrupt:
-        sys.exit(0)
-
-main()
+try:
+    main_loop()
+except Exception as e:
+    print("Exception occurred:", e)
+    sys.print_exception(e)
+    machine.reset()  # Reboot on unhandled exceptions
